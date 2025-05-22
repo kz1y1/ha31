@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Magnetic Particle Heart with Message</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>قلب جسيمي متحرك</title>
     <style>
         body {
             margin: 0;
@@ -11,7 +12,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            cursor: none;
+            touch-action: none;
             font-family: 'Arial', sans-serif;
         }
         
@@ -20,21 +21,22 @@
             position: absolute;
         }
         
-        .mouse-circle {
+        .touch-circle {
             position: absolute;
-            width: 30px;
-            height: 30px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            background: rgba(255, 50, 50, 0.2);
+            background: rgba(255, 50, 50, 0.15);
             transform: translate(-50%, -50%);
             pointer-events: none;
             mix-blend-mode: screen;
+            display: none;
         }
         
         .heart-message {
             position: absolute;
             color: rgba(255, 100, 150, 0.9);
-            font-size: 2.5rem;
+            font-size: 2rem;
             text-align: center;
             text-shadow: 0 0 15px rgba(255, 50, 100, 0.7);
             z-index: 10;
@@ -43,48 +45,87 @@
             opacity: 0;
             transition: opacity 1.5s ease;
             font-weight: bold;
+            padding: 0 20px;
         }
         
         @media (max-width: 768px) {
             .heart-message {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
             }
         }
     </style>
 </head>
 <body>
     <canvas id="heartCanvas"></canvas>
-    <div class="mouse-circle" id="mouseCircle"></div>
+    <div class="touch-circle" id="touchCircle"></div>
     <div class="heart-message" id="heartMessage">أحبك يا هيونتي</div>
 
     <script>
         const canvas = document.getElementById('heartCanvas');
         const ctx = canvas.getContext('2d');
-        const mouseCircle = document.getElementById('mouseCircle');
+        const touchCircle = document.getElementById('touchCircle');
         const heartMessage = document.getElementById('heartMessage');
         
         // Set canvas size
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            heartMessage.style.left = `${canvas.width/2}px`;
+            heartMessage.style.top = `${canvas.height/2}px`;
+            heartMessage.style.transform = 'translate(-50%, -50%)';
+        }
+        resizeCanvas();
         
         // Configuration
-        const PARTICLE_COUNT = 1500;
-        const PARTICLE_SIZE = 1.5;
-        const MOUSE_RADIUS = 100;
-        const HEART_SCALE = 15;
+        const PARTICLE_COUNT = window.innerWidth < 768 ? 800 : 1500;
+        const PARTICLE_SIZE = window.innerWidth < 768 ? 1.2 : 1.5;
+        const TOUCH_RADIUS = window.innerWidth < 768 ? 120 : 100;
+        const HEART_SCALE = window.innerWidth < 768 ? 12 : 15;
         const REPULSION_FORCE = 0.3;
         const ATTRACTION_FORCE = 0.1;
         
-        // Mouse position
-        const mouse = { x: null, y: null };
+        // Touch position
+        const touch = { x: null, y: null, active: false };
         
-        // Track mouse movement
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-            mouseCircle.style.left = `${mouse.x}px`;
-            mouseCircle.style.top = `${mouse.y}px`;
+        // Track touch movement
+        window.addEventListener('touchstart', (e) => {
+            touch.active = true;
+            updateTouchPosition(e);
+            touchCircle.style.display = 'block';
         });
+        
+        window.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            updateTouchPosition(e);
+        });
+        
+        window.addEventListener('touchend', () => {
+            touch.active = false;
+            touchCircle.style.display = 'none';
+        });
+        
+        // Track mouse movement (for desktop)
+        window.addEventListener('mousemove', (e) => {
+            touch.active = true;
+            touch.x = e.clientX;
+            touch.y = e.clientY;
+            touchCircle.style.left = `${touch.x}px`;
+            touchCircle.style.top = `${touch.y}px`;
+            touchCircle.style.display = 'block';
+        });
+        
+        window.addEventListener('mouseout', () => {
+            touch.active = false;
+            touchCircle.style.display = 'none';
+        });
+        
+        function updateTouchPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            touch.x = e.touches ? e.touches[0].clientX : e.clientX;
+            touch.y = e.touches ? e.touches[0].clientY : e.clientY;
+            touchCircle.style.left = `${touch.x}px`;
+            touchCircle.style.top = `${touch.y}px`;
+        }
         
         // Particle class
         class Particle {
@@ -114,25 +155,27 @@
                 const heartX = canvas.width / 2 + Math.cos(angle) * distanceFromHeart * HEART_SCALE;
                 const heartY = canvas.height / 2 + Math.sin(angle) * distanceFromHeart * HEART_SCALE;
                 
-                // Mouse interaction
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                let forceDirectionX = dx / distance;
-                let forceDirectionY = dy / distance;
-                
-                // Apply forces
-                if (distance < MOUSE_RADIUS) {
-                    const force = (MOUSE_RADIUS - distance) / MOUSE_RADIUS;
-                    this.vx += forceDirectionX * force * REPULSION_FORCE * this.density;
-                    this.vy += forceDirectionY * force * REPULSION_FORCE * this.density;
-                } else {
-                    // Attraction to heart position
-                    const ax = (heartX - this.x) * ATTRACTION_FORCE * 0.01;
-                    const ay = (heartY - this.y) * ATTRACTION_FORCE * 0.01;
-                    this.vx += ax;
-                    this.vy += ay;
+                // Touch interaction
+                if (touch.active) {
+                    let dx = touch.x - this.x;
+                    let dy = touch.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    let forceDirectionX = dx / distance;
+                    let forceDirectionY = dy / distance;
+                    
+                    if (distance < TOUCH_RADIUS) {
+                        const force = (TOUCH_RADIUS - distance) / TOUCH_RADIUS;
+                        this.vx += forceDirectionX * force * REPULSION_FORCE * this.density;
+                        this.vy += forceDirectionY * force * REPULSION_FORCE * this.density;
+                        return;
+                    }
                 }
+                
+                // Attraction to heart position
+                const ax = (heartX - this.x) * ATTRACTION_FORCE * 0.01;
+                const ay = (heartY - this.y) * ATTRACTION_FORCE * 0.01;
+                this.vx += ax;
+                this.vy += ay;
                 
                 // Apply physics
                 this.vx *= this.friction;
@@ -154,10 +197,7 @@
         const particles = [];
         
         function init() {
-            // Center the message
-            heartMessage.style.left = `${canvas.width/2}px`;
-            heartMessage.style.top = `${canvas.height/2}px`;
-            heartMessage.style.transform = 'translate(-50%, -50%)';
+            particles.length = 0;
             
             // Heart shape equation (parametric)
             for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -196,10 +236,7 @@
         
         // Handle resize
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            heartMessage.style.left = `${canvas.width/2}px`;
-            heartMessage.style.top = `${canvas.height/2}px`;
+            resizeCanvas();
             init();
         });
         
