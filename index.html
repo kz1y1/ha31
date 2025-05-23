@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>قلب لهيونتي</title>
+    <title>لهيونه</title>
     <style>
         body {
             margin: 0;
@@ -48,9 +48,31 @@
             padding: 0 20px;
         }
         
+        .countdown {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 200, 200, 0.9);
+            font-size: 1.5rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 100, 150, 0.7);
+            z-index: 10;
+            pointer-events: none;
+            user-select: none;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            font-weight: bold;
+            direction: rtl;
+        }
+        
         @media (max-width: 768px) {
             .heart-message {
                 font-size: 1.5rem;
+            }
+            .countdown {
+                font-size: 1.2rem;
+                bottom: 20px;
             }
         }
     </style>
@@ -59,12 +81,14 @@
     <canvas id="heartCanvas"></canvas>
     <div class="touch-circle" id="touchCircle"></div>
     <div class="heart-message" id="heartMessage">أحبك يا هيونتي</div>
+    <div class="countdown" id="countdown"></div>
 
     <script>
         const canvas = document.getElementById('heartCanvas');
         const ctx = canvas.getContext('2d');
         const touchCircle = document.getElementById('touchCircle');
         const heartMessage = document.getElementById('heartMessage');
+        const countdownElement = document.getElementById('countdown');
         
         // Set canvas size
         function resizeCanvas() {
@@ -83,6 +107,9 @@
         const HEART_SCALE = window.innerWidth < 768 ? 12 : 15;
         const REPULSION_FORCE = 0.3;
         const ATTRACTION_FORCE = 0.1;
+        
+        // Birthday date (June 20, 2025)
+        const BIRTHDAY_DATE = new Date(2025, 5, 20); // Note: months are 0-indexed (5 = June)
         
         // Touch position
         const touch = { x: null, y: null, active: false };
@@ -125,6 +152,24 @@
             touch.y = e.touches ? e.touches[0].clientY : e.clientY;
             touchCircle.style.left = `${touch.x}px`;
             touchCircle.style.top = `${touch.y}px`;
+        }
+        
+        // Countdown function
+        function updateCountdown() {
+            const now = new Date();
+            const diff = BIRTHDAY_DATE - now;
+            
+            if (diff <= 0) {
+                countdownElement.textContent = "!عيد ميلاد سعيد! اليوم هو يوم عيد ميلادك";
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            countdownElement.textContent = `متبقي ${days} يوم و ${hours} ساعة و ${minutes} دقيقة و ${seconds} ثانية على يوم ميلاد هيونه`;
         }
         
         // Particle class
@@ -219,6 +264,7 @@
             // Fade in message after particles form
             setTimeout(() => {
                 heartMessage.style.opacity = '1';
+                countdownElement.style.opacity = '1';
             }, 2000);
         }
         
@@ -231,6 +277,7 @@
                 particles[i].draw();
             }
             
+            updateCountdown();
             requestAnimationFrame(animate);
         }
         
